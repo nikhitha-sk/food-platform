@@ -10,9 +10,11 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 
 	"github.com/food-platform/user-service/internal/config"
+	"github.com/food-platform/user-service/internal/events"
 	"github.com/food-platform/user-service/internal/handlers"
 	"github.com/food-platform/user-service/internal/middleware"
 	"github.com/food-platform/user-service/internal/models"
@@ -38,6 +40,16 @@ func main() {
 	// ── Redis ─────────────────────────────────────────────────
 	rdb := config.ConnectRedis(cfg.RedisAddr)
 
+	// ── RabbitMQ ──────────────────────────────────────────────
+	rbConn, err := amqp091.Dial(cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatal("failed to connect to RabbitMQ", zap.Error(err))
+	}
+	rbCh, err := rbConn.Channel()
+	if err != nil {
+		log.Fatal("failed to open RabbitMQ channel", zap.Error(err))
+	}
+
 	// ── Repos ─────────────────────────────────────────────────
 	profileRepo := repository.NewProfileRepository(db)
 	addressRepo := repository.NewAddressRepository(db)
@@ -45,6 +57,15 @@ func main() {
 	// ── Services ──────────────────────────────────────────────
 	profileSvc := service.NewProfileService(profileRepo)
 	addressSvc := service.NewAddressService(addressRepo, profileRepo)
+
+	// ── Event Consumer ────────────────────────────────────────
+	consumer := events.NewConsumer(rbConn, rbCh, profileSvc)
+	consumerCtx, consumerCancel := context.WithCancel(context.Background())
+	go func() {
+		if err := consumer.Start(consumerCtx); err != nil {
+			log.Error("event consumer error", zap.Error(err))
+		}
+	}()
 
 	// ── Handlers ──────────────────────────────────────────────
 	profileH := handlers.NewProfileHandler(profileSvc)
@@ -103,6 +124,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Info("shutting down user-service...")
+
+	// Stop event consumer
+	consumerCancel()
+	if err := consumer.Stop(); err != nil {
+		log.Error("failed to stop consumer", zap.Error(err))
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

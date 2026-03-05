@@ -19,20 +19,22 @@ type Config struct {
 	AppEnv  string
 	AppPort string
 
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
 	DatabaseURL string
 
 	RedisHost     string
 	RedisPort     string
 	RedisPassword string
 
-	JWTSecret             string
-	AccessTokenTTL        time.Duration
-	RefreshTokenTTL       time.Duration
+	RabbitMQURL string
+
+	JWTSecret       string
+	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
 
 	RateLimitAuthRPM   int
 	RateLimitPublicRPM int
@@ -48,8 +50,8 @@ func Load() *Config {
 
 	accessTTL, _ := strconv.Atoi(getEnv("ACCESS_TOKEN_TTL_MINUTES", "15"))
 	refreshTTL, _ := strconv.Atoi(getEnv("REFRESH_TOKEN_TTL_DAYS", "7"))
-	authRPM, _    := strconv.Atoi(getEnv("RATE_LIMIT_AUTH_RPM", "30"))
-	pubRPM, _     := strconv.Atoi(getEnv("RATE_LIMIT_PUBLIC_RPM", "100"))
+	authRPM, _ := strconv.Atoi(getEnv("RATE_LIMIT_AUTH_RPM", "30"))
+	pubRPM, _ := strconv.Atoi(getEnv("RATE_LIMIT_PUBLIC_RPM", "100"))
 
 	return &Config{
 		AppEnv:  getEnv("APP_ENV", "development"),
@@ -65,6 +67,8 @@ func Load() *Config {
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
 		RedisPort:     getEnv("REDIS_PORT", "6379"),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+
+		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 
 		JWTSecret:       getEnv("JWT_SECRET", "changeme"),
 		AccessTokenTTL:  time.Duration(accessTTL) * time.Minute,

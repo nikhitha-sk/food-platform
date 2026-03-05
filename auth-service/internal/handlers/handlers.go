@@ -12,24 +12,25 @@ import (
 
 // AuthHandler holds dependencies for all auth routes.
 type AuthHandler struct {
-    svc       service.AuthService
-    startTime time.Time
-    jwtSecret string
+	svc       service.AuthService
+	startTime time.Time
+	jwtSecret string
 }
 
 func New(svc service.AuthService, jwtSecret string) *AuthHandler {
-    return &AuthHandler{svc: svc, startTime: time.Now(), jwtSecret: jwtSecret}
+	return &AuthHandler{svc: svc, startTime: time.Now(), jwtSecret: jwtSecret}
 }
 
 // RegisterRoutes wires all auth endpoints onto the given router group.
 func (h *AuthHandler) RegisterRoutes(rg *gin.RouterGroup, jwtSecret string) {
-	rg.POST("/register",    h.Register)
-	rg.POST("/login",       h.Login)
-	rg.POST("/refresh",     h.Refresh)
-	rg.POST("/logout",     middleware.JWTAuth(jwtSecret), h.Logout)  // JWT applied here
-	rg.POST("/otp/send",    h.SendOTP)
-	rg.POST("/otp/verify",  h.VerifyOTP)
-	rg.GET("/health",       h.Health)
+	rg.POST("/register", h.Register)
+	rg.POST("/login", h.Login)
+	rg.POST("/refresh", h.Refresh)
+	rg.POST("/logout", middleware.JWTAuth(jwtSecret), h.Logout)           // JWT applied here
+	rg.DELETE("/account", middleware.JWTAuth(jwtSecret), h.DeleteAccount) // JWT applied here
+	rg.POST("/otp/send", h.SendOTP)
+	rg.POST("/otp/verify", h.VerifyOTP)
+	rg.GET("/health", h.Health)
 }
 
 // ─── POST /api/v1/auth/register ───────────────────────────────────────────────
@@ -130,6 +131,29 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.SuccessResponse{Message: "logged out successfully"})
+}
+
+// ─── DELETE /api/v1/auth/account ──────────────────────────────────────────────
+
+func (h *AuthHandler) DeleteAccount(c *gin.Context) {
+	// user_id is injected into context by the JWT middleware.
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	if err := h.svc.DeleteAccount(userID.(uint)); err != nil {
+		switch err {
+		case service.ErrUserNotFound:
+			c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "user_not_found"})
+		default:
+			c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.SuccessResponse{Message: "account deleted successfully"})
 }
 
 // ─── POST /api/v1/auth/otp/send ───────────────────────────────────────────────

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/food-platform/auth-service/internal/config"
+	"github.com/food-platform/auth-service/internal/events"
 	"github.com/food-platform/auth-service/internal/models"
 	"github.com/food-platform/auth-service/internal/repository"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,12 +20,12 @@ import (
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
 var (
-	ErrUserAlreadyExists   = errors.New("user with this email already exists")
-	ErrPhoneAlreadyExists  = errors.New("user with this phone already exists")
-	ErrInvalidCredentials  = errors.New("invalid email or password")
-	ErrInvalidToken        = errors.New("invalid or expired token")
-	ErrInvalidOTP          = errors.New("invalid or expired OTP")
-	ErrUserNotFound        = errors.New("user not found")
+	ErrUserAlreadyExists  = errors.New("user with this email already exists")
+	ErrPhoneAlreadyExists = errors.New("user with this phone already exists")
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrInvalidToken       = errors.New("invalid or expired token")
+	ErrInvalidOTP         = errors.New("invalid or expired OTP")
+	ErrUserNotFound       = errors.New("user not found")
 )
 
 // ─── Claims ───────────────────────────────────────────────────────────────────
@@ -45,16 +46,18 @@ type AuthService interface {
 	Logout(userID uint, refreshToken string) error
 	SendOTP(phone string) error
 	VerifyOTP(phone, code string) (*models.AuthResponse, error)
+	DeleteAccount(userID uint) error
 }
 
 type authService struct {
-	repo   repository.AuthRepository
-	redis  *redis.Client
-	cfg    *config.Config
+	repo      repository.AuthRepository
+	redis     *redis.Client
+	cfg       *config.Config
+	publisher events.Publisher
 }
 
-func New(repo repository.AuthRepository, rdb *redis.Client, cfg *config.Config) AuthService {
-	return &authService{repo: repo, redis: rdb, cfg: cfg}
+func New(repo repository.AuthRepository, rdb *redis.Client, cfg *config.Config, publisher events.Publisher) AuthService {
+	return &authService{repo: repo, redis: rdb, cfg: cfg, publisher: publisher}
 }
 
 // ─── Register ─────────────────────────────────────────────────────────────────
@@ -97,6 +100,21 @@ func (s *authService) Register(req *models.RegisterRequest) (*models.AuthRespons
 	}
 	if err := s.repo.CreateUser(user); err != nil {
 		return nil, err
+	}
+
+	// Publish USER_CREATED event
+	event := &models.UserCreatedEvent{
+		Event:     "USER_CREATED",
+		UserID:    user.ID,
+		Email:     user.Email,
+		Phone:     user.Phone,
+		Role:      user.Role,
+		Timestamp: time.Now(),
+	}
+	if err := s.publisher.PublishUserCreated(event); err != nil {
+		// Log the error but don't fail the registration
+		// In production, you might want to handle this differently
+		fmt.Printf("Failed to publish USER_CREATED event: %v\n", err)
 	}
 
 	return s.buildAuthResponse(user)
@@ -149,6 +167,45 @@ func (s *authService) Logout(userID uint, refreshToken string) error {
 	ctx := context.Background()
 	// Delete the refresh token from Redis — this revokes it immediately.
 	return s.redis.Del(ctx, s.refreshKey(userID)).Err()
+}
+
+// ─── Delete Account ───────────────────────────────────────────────────────────
+
+func (s *authService) DeleteAccount(userID uint) error {
+	user, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+
+	// Soft delete the user
+	now := time.Now()
+	user.IsDeleted = true
+	user.DeletedAt = &now
+
+	if err := s.repo.UpdateUser(user); err != nil {
+		return err
+	}
+
+	// Publish USER_DELETED event
+	event := &models.UserDeletedEvent{
+		Event:     "USER_DELETED",
+		UserID:    user.ID,
+		Email:     user.Email,
+		Timestamp: time.Now(),
+	}
+	if err := s.publisher.PublishUserDeleted(event); err != nil {
+		// Log the error but don't fail the deletion
+		fmt.Printf("Failed to publish USER_DELETED event: %v\n", err)
+	}
+
+	// Revoke the user's refresh tokens
+	ctx := context.Background()
+	s.redis.Del(ctx, s.refreshKey(userID)) //nolint
+
+	return nil
 }
 
 // ─── OTP ──────────────────────────────────────────────────────────────────────
