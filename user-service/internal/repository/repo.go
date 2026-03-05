@@ -13,19 +13,18 @@ import (
 
 type ProfileRepository interface {
 	GetByAuthID(authID uint) (*models.Profile, error)
-	GetByID(id uint) (*models.Profile, error)
 	Create(p *models.Profile) error
 	Update(p *models.Profile) error
-	SoftDelete(id uint) error
+	SoftDelete(authID uint) error
 }
 
 type AddressRepository interface {
-	ListByUserID(userID uint) ([]models.Address, error)
+	ListByAuthID(authID uint) ([]models.Address, error)
 	GetByID(id uint) (*models.Address, error)
 	Create(a *models.Address) error
 	Update(a *models.Address) error
 	Delete(id uint) error
-	ClearDefault(userID uint) error
+	ClearDefault(authID uint) error
 }
 
 // ────────────────────────────────────────────────────────────
@@ -45,15 +44,6 @@ func (r *profileRepo) GetByAuthID(authID uint) (*models.Profile, error) {
 	return &p, err
 }
 
-func (r *profileRepo) GetByID(id uint) (*models.Profile, error) {
-	var p models.Profile
-	err := r.db.First(&p, id).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return &p, err
-}
-
 func (r *profileRepo) Create(p *models.Profile) error {
 	return r.db.Create(p).Error
 }
@@ -62,8 +52,8 @@ func (r *profileRepo) Update(p *models.Profile) error {
 	return r.db.Save(p).Error
 }
 
-func (r *profileRepo) SoftDelete(id uint) error {
-	return r.db.Delete(&models.Profile{}, id).Error
+func (r *profileRepo) SoftDelete(authID uint) error {
+	return r.db.Model(&models.Profile{}).Where("auth_id = ?", authID).Delete(&models.Profile{}).Error
 }
 
 // ────────────────────────────────────────────────────────────
@@ -74,9 +64,9 @@ type addressRepo struct{ db *gorm.DB }
 
 func NewAddressRepository(db *gorm.DB) AddressRepository { return &addressRepo{db} }
 
-func (r *addressRepo) ListByUserID(userID uint) ([]models.Address, error) {
+func (r *addressRepo) ListByAuthID(authID uint) ([]models.Address, error) {
 	var addrs []models.Address
-	err := r.db.Where("user_id = ?", userID).Find(&addrs).Error
+	err := r.db.Where("auth_id = ?", authID).Find(&addrs).Error
 	return addrs, err
 }
 
@@ -102,8 +92,8 @@ func (r *addressRepo) Delete(id uint) error {
 }
 
 // ClearDefault unsets is_default for all addresses of a user before setting a new default.
-func (r *addressRepo) ClearDefault(userID uint) error {
+func (r *addressRepo) ClearDefault(authID uint) error {
 	return r.db.Model(&models.Address{}).
-		Where("user_id = ? AND is_default = true", userID).
+		Where("auth_id = ? AND is_default = true", authID).
 		Update("is_default", false).Error
 }

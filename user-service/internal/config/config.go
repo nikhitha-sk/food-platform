@@ -15,19 +15,21 @@ import (
 )
 
 type Config struct {
-	Port      string
-	DBUrl     string
-	RedisAddr string
-	JWTSecret string
+	Port        string
+	DBUrl       string
+	RedisAddr   string
+	RabbitMQURL string
+	JWTSecret   string
 }
 
 func Load() *Config {
 	_ = godotenv.Load()
 	return &Config{
-		Port:      getEnv("PORT", "8002"),
-		DBUrl:     getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/user_db?sslmode=disable"),
-		RedisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
-		JWTSecret: getEnv("JWT_SECRET", "supersecret"),
+		Port:        getEnv("PORT", "8002"),
+		DBUrl:       getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/user_db?sslmode=disable"),
+		RedisAddr:   getEnv("REDIS_ADDR", "localhost:6379"),
+		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		JWTSecret:   getEnv("JWT_SECRET", "supersecret"),
 	}
 }
 

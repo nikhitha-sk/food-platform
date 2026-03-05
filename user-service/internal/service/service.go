@@ -100,7 +100,7 @@ func (s *profileService) DeleteProfile(authID uint, callerID uint, callerRole st
 	if callerRole != "ADMIN" && callerID != p.AuthID {
 		return ErrForbidden
 	}
-	return s.profileRepo.SoftDelete(p.ID)
+	return s.profileRepo.SoftDelete(p.AuthID)
 }
 
 // ────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ func (s *addressService) ListAddresses(authID uint, callerID uint, callerRole st
 	if callerRole != "ADMIN" && callerID != p.AuthID {
 		return nil, ErrForbidden
 	}
-	return s.addressRepo.ListByUserID(p.ID)
+	return s.addressRepo.ListByAuthID(p.AuthID)
 }
 
 func (s *addressService) AddAddress(authID uint, callerID uint, callerRole string, req *models.AddAddressRequest) (*models.Address, error) {
@@ -155,10 +155,10 @@ func (s *addressService) AddAddress(authID uint, callerID uint, callerRole strin
 		return nil, ErrForbidden
 	}
 	if req.IsDefault {
-		_ = s.addressRepo.ClearDefault(p.ID)
+		_ = s.addressRepo.ClearDefault(p.AuthID)
 	}
 	a := &models.Address{
-		UserID:    p.ID,
+		AuthID:    p.AuthID,
 		Label:     req.Label,
 		Line1:     req.Line1,
 		City:      req.City,
@@ -179,7 +179,7 @@ func (s *addressService) UpdateAddress(addressID uint, callerID uint, callerRole
 		return nil, ErrNotFound
 	}
 	// Resolve profile to get auth_id for ownership check
-	p, err := s.profileRepo.GetByID(a.UserID)
+	p, err := s.profileRepo.GetByAuthID(a.AuthID)
 	if err != nil || p == nil {
 		return nil, ErrNotFound
 	}
@@ -205,7 +205,7 @@ func (s *addressService) UpdateAddress(addressID uint, callerID uint, callerRole
 		a.Longitude = req.Longitude
 	}
 	if req.IsDefault {
-		_ = s.addressRepo.ClearDefault(a.UserID)
+		_ = s.addressRepo.ClearDefault(a.AuthID)
 		a.IsDefault = true
 	}
 	if err := s.addressRepo.Update(a); err != nil {
@@ -219,7 +219,7 @@ func (s *addressService) DeleteAddress(addressID uint, callerID uint, callerRole
 	if err != nil || a == nil {
 		return ErrNotFound
 	}
-	p, err := s.profileRepo.GetByID(a.UserID)
+	p, err := s.profileRepo.GetByAuthID(a.AuthID)
 	if err != nil || p == nil {
 		return ErrNotFound
 	}

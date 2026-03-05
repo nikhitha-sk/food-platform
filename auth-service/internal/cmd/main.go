@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/food-platform/auth-service/internal/config"
+	"github.com/food-platform/auth-service/internal/events"
 	"github.com/food-platform/auth-service/internal/handlers"
 	"github.com/food-platform/auth-service/internal/middleware"
 	"github.com/food-platform/auth-service/internal/models"
@@ -17,6 +18,7 @@ import (
 	"github.com/food-platform/auth-service/internal/service"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 )
 
@@ -38,8 +40,24 @@ func main() {
 	defer logger.Sync() //nolint:errcheck
 
 	// ── 3. Infrastructure ─────────────────────────────────────────────────────
-	db  := config.ConnectDB(cfg)
+	db := config.ConnectDB(cfg)
 	rdb := config.ConnectRedis(cfg)
+
+	// RabbitMQ connection and channel for event publishing
+	rbConn, err := amqp091.Dial(cfg.RabbitMQURL)
+	if err != nil {
+		logger.Fatal("failed to connect to RabbitMQ", zap.Error(err))
+	}
+	rbCh, err := rbConn.Channel()
+	if err != nil {
+		logger.Fatal("failed to open RabbitMQ channel", zap.Error(err))
+	}
+
+	// Create event publisher
+	publisher, err := events.NewPublisher(rbCh)
+	if err != nil {
+		logger.Fatal("failed to create event publisher", zap.Error(err))
+	}
 
 	// ── 4. Auto-migrate (Phase 1 only — replace with golang-migrate in prod) ──
 	if err := db.AutoMigrate(&models.User{}, &models.OTP{}); err != nil {
@@ -47,8 +65,8 @@ func main() {
 	}
 
 	// ── 5. Wire layers ────────────────────────────────────────────────────────
-	repo    := repository.New(db)
-	svc     := service.New(repo, rdb, cfg)
+	repo := repository.New(db)
+	svc := service.New(repo, rdb, cfg, publisher)
 	handler := handlers.New(svc, cfg.JWTSecret)
 
 	// ── 6. Gin setup ──────────────────────────────────────────────────────────
@@ -116,6 +134,10 @@ func main() {
 	sqlDB, _ := db.DB()
 	sqlDB.Close()
 	rdb.Close()
+
+	// Close RabbitMQ connections.
+	rbCh.Close()
+	rbConn.Close()
 
 	logger.Info("auth-service stopped")
 }

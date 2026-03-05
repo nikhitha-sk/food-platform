@@ -11,8 +11,7 @@ import (
 // ────────────────────────────────────────────────────────────
 
 type Profile struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	AuthID    uint           `gorm:"uniqueIndex;not null" json:"auth_id"`
+	AuthID    uint           `gorm:"primaryKey" json:"auth_id"`
 	Name      string         `gorm:"size:100" json:"name"`
 	AvatarURL string         `gorm:"size:255" json:"avatar_url"`
 	CreatedAt time.Time      `json:"created_at"`
@@ -21,7 +20,7 @@ type Profile struct {
 
 type Address struct {
 	ID        uint    `gorm:"primaryKey" json:"id"`
-	UserID    uint    `gorm:"not null;index" json:"user_id"`
+	AuthID    uint    `gorm:"not null;index" json:"auth_id"`
 	Label     string  `gorm:"size:50" json:"label"`   // Home | Work | Other
 	Line1     string  `gorm:"type:text" json:"line1"` //nolint
 	City      string  `gorm:"size:100" json:"city"`
@@ -66,4 +65,24 @@ type ErrorResponse struct {
 
 type MessageResponse struct {
 	Message string `json:"message"`
+}
+
+// ────────────────────────────────────────────────────────────
+// Event Models
+// ────────────────────────────────────────────────────────────
+
+type UserCreatedEvent struct {
+	Event     string    `json:"event"`
+	UserID    uint      `json:"user_id"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone,omitempty"`
+	Role      string    `json:"role"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type UserDeletedEvent struct {
+	Event     string    `json:"event"`
+	UserID    uint      `json:"user_id"`
+	Email     string    `json:"email"`
+	Timestamp time.Time `json:"timestamp"`
 }

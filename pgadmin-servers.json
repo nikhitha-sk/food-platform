@@ -1,0 +1,24 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "auth-db (postgres-auth)",
+      "Group": "Food Platform",
+      "Host": "postgres-auth",
+      "Port": 5432,
+      "MaintenanceDB": "auth_db",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    },
+    "2": {
+      "Name": "user-db (postgres-user)",
+      "Group": "Food Platform",
+      "Host": "postgres-user",
+      "Port": 5432,
+      "MaintenanceDB": "user_db",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

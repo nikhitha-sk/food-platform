@@ -15,6 +15,7 @@ type AuthRepository interface {
 	FindUserByEmail(email string) (*models.User, error)
 	FindUserByID(id uint) (*models.User, error)
 	FindUserByPhone(phone string) (*models.User, error)
+	UpdateUser(user *models.User) error
 
 	CreateOTP(otp *models.OTP) error
 	FindValidOTP(phone, code string) (*models.OTP, error)
@@ -34,6 +35,10 @@ func New(db *gorm.DB) AuthRepository {
 
 func (r *authRepository) CreateUser(user *models.User) error {
 	return r.db.Create(user).Error
+}
+
+func (r *authRepository) UpdateUser(user *models.User) error {
+	return r.db.Save(user).Error
 }
 
 func (r *authRepository) FindUserByEmail(email string) (*models.User, error) {
