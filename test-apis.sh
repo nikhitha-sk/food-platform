@@ -25,6 +25,7 @@ curl -s http://localhost:8002/api/v1/users/health | jq '.'
 curl -s http://localhost:8003/api/v1/restaurants/health | jq '.'
 curl -s http://localhost:8004/api/v1/orders/health | jq '.'
 curl -s http://localhost:8005/api/v1/delivery/health | jq '.'
+curl -s http://localhost:8006/api/v1/notifications/health | jq '.'
 echo
 
 # internal endpoint check (not exposed to public)

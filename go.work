@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	./auth-service
 	./delivery-service
+	./notification-service
 	./order-service
 	./restaurant-service
 	./user-service

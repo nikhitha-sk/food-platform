@@ -228,6 +228,44 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: postgres-notification
+    environment:
+      POSTGRES_DB:       notification_db
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - notification-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Notification Service ───────────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8006:8006"
+    environment:
+      PORT:               "8006"
+      DATABASE_URL:       postgres://postgres:postgres@postgres-notification:5432/notification_db?sslmode=disable
+      REDIS_URL:          redis:6379
+      RABBITMQ_URL:       "amqp://guest:guest@rabbitmq:5672/"
+      JWT_SECRET:         "change-me-in-production"
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── pgAdmin ───────────────────────────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4
@@ -248,6 +286,7 @@ services:
       - postgres-restaurant
       - postgres-order
       - postgres-delivery
+      - postgres-notification
     restart: unless-stopped
 
 volumes:
@@ -256,5 +295,6 @@ volumes:
   restaurant-data:
   order-data:
   delivery-data:
+  notification-data:
   redis-data:
   pgadmin-data:   # ✅ persist pgAdmin settings across restarts

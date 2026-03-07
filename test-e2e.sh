@@ -10,6 +10,7 @@ USER="http://localhost:8002/api/v1"
 REST="http://localhost:8003/api/v1"
 ORD="http://localhost:8004/api/v1"
 DEL="http://localhost:8005/api/v1"
+NOTIF="http://localhost:8006/api/v1"
 PASS="Pass@12345"
 TS=$(date +%s)
 
@@ -61,10 +62,10 @@ docker exec -i postgres-delivery psql -U postgres -d delivery_db -c "DELETE FROM
 green "Cleaned delivery_db (drivers, deliveries, outbox_events)"
 
 # ═══════════════════════════════════════════════════════════════
-header "1. HEALTH CHECKS (All 5 Services)"
+header "1. HEALTH CHECKS (All 6 Services)"
 # ═══════════════════════════════════════════════════════════════
 
-for p in "auth:8001:auth" "user:8002:users" "restaurant:8003:restaurants" "order:8004:orders" "delivery:8005:delivery"; do
+for p in "auth:8001:auth" "user:8002:users" "restaurant:8003:restaurants" "order:8004:orders" "delivery:8005:delivery" "notification:8006:notifications"; do
   IFS=: read -r name port path <<< "$p"
   CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port/api/v1/$path/health")
   assert_http "$name-service health" "$CODE" "200"
@@ -568,7 +569,7 @@ done
 
 sub "Check RabbitMQ queues exist"
 QUEUES=$(docker exec food-platform-rabbitmq-1 rabbitmqctl list_queues --formatter=json 2>/dev/null | jq -r '.[].name' 2>/dev/null || echo "")
-for q in delivery.order_prepared delivery.user_created; do
+for q in delivery.order_prepared delivery.user_created notify.order_placed notify.driver_assigned notify.order_delivered notify.order_failed notify.order_cancelled; do
   if echo "$QUEUES" | grep -q "$q"; then
     green "Queue '$q' exists"
   else
