@@ -1,8 +1,10 @@
 go 1.26.0
 
 use (
+	./admin-service
 	./auth-service
 	./delivery-service
+	./notification-service
 	./order-service
 	./restaurant-service
 	./user-service

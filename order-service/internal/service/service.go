@@ -34,6 +34,7 @@ type OrderService interface {
 	CancelOrder(userID uint, orderID uint) error
 	UpdateStatusByOwner(ownerUserID uint, orderID uint, status string) error
 	UpdateStatus(orderID uint, status string) error
+	GetStats() (*models.OrderStats, error)
 }
 
 // orderService is concrete implementation.
@@ -260,7 +261,10 @@ func (s *orderService) CancelOrder(userID uint, orderID uint) error {
 		}
 		e := &models.OutboxEvent{
 			EventType: "ORDER_CANCELLED",
-			Payload:   models.JSONMap{"order_id": order.ID},
+			Payload: models.JSONMap{
+				"order_id": order.ID,
+				"user_id":  order.UserID,
+			},
 		}
 		return s.outboxRepo.Create(tx, e)
 	})
@@ -343,4 +347,8 @@ func (s *orderService) UpdateStatus(orderID uint, status string) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		return s.repo.Update(tx, order)
 	})
+}
+
+func (s *orderService) GetStats() (*models.OrderStats, error) {
+	return s.repo.GetStats()
 }

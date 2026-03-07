@@ -102,6 +102,19 @@ services:
     volumes:
       - delivery-data:/var/lib/postgresql/data
 
+  # ── Notification DB (port 5439) ────────────────────────────────────────────────
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: postgres-notification
+    environment:
+      POSTGRES_DB:       notification_db
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5439:5432"
+    volumes:
+      - notification-data:/var/lib/postgresql/data
+
   # ── Redis ─────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -133,5 +146,6 @@ volumes:
   order-data:
   payment-data:
   delivery-data:
+  notification-data:
   redis-data:
   rabbitmq-data:
