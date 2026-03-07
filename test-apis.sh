@@ -4,7 +4,17 @@
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
 NC='\033[0m'
+
+# Helper: log request details (method, url, auth, body)
+log_req() {
+  local method="$1" url="$2" auth="$3" body="$4"
+  echo -e "${CYAN}→ $method $url${NC}"
+  [ -n "$auth" ] && echo -e "${CYAN}  Auth: Bearer ${auth:0:20}...${NC}"
+  [ -n "$body" ] && echo -e "${CYAN}  Body: $(echo "$body" | jq -c . 2>/dev/null || echo "$body")${NC}"
+}
 
 echo -e "${BLUE}=== Food Platform API Testing ===${NC}\n"
 
@@ -13,6 +23,7 @@ echo -e "${BLUE}[INIT] Health checks${NC}"
 curl -s http://localhost:8001/api/v1/auth/health | jq '.'
 curl -s http://localhost:8002/api/v1/users/health | jq '.'
 curl -s http://localhost:8003/api/v1/restaurants/health | jq '.'
+curl -s http://localhost:8004/api/v1/orders/health | jq '.'
 echo
 
 # internal endpoint check (not exposed to public)
@@ -27,6 +38,7 @@ echo
 echo -e "${BLUE}[TEST 1] Register New User${NC}"
 TIMESTAMP=$(date +%s%N | cut -b1-13)
 PHONE="+1555$(printf '%07d' $((RANDOM * 32768 + RANDOM)))"
+log_req "POST" "http://localhost:8001/api/v1/auth/register" "" '{"name":"Test User","email":"'$TIMESTAMP'@test.com","phone":"'$PHONE'","role":"USER"}'
 REGISTER_RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -57,6 +69,7 @@ PASSWORD="Pass@12345"
 
 # Test 2: Login using credentials
 echo -e "${BLUE}[TEST 2] Login with email/password${NC}"
+log_req "POST" "http://localhost:8001/api/v1/auth/login" "" '{"email":"'$EMAIL'"}'
 LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"'$EMAIL'","password":"'$PASSWORD'"}')
@@ -113,6 +126,7 @@ fi
 
 # Test 7: Add an address
 echo -e "${BLUE}[TEST 7] Add Address${NC}"
+log_req "POST" "http://localhost:8002/api/v1/users/$USER_ID/addresses" "$ACCESS_TOKEN" '{"label":"Home","city":"New York","pincode":"10001"}'
 ADDRESS_RESPONSE=$(curl -s -X POST http://localhost:8002/api/v1/users/$USER_ID/addresses \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
@@ -179,6 +193,7 @@ echo -e "${GREEN}✓ Owner registered: ID=$OWNER_ID${NC}\n"
 
 # Test 11: Create Restaurant
 echo -e "${BLUE}[TEST 11] Create Restaurant${NC}"
+log_req "POST" "http://localhost:8003/api/v1/restaurants" "$OWNER_TOKEN" '{"name":"Tandoori Nights","cuisine":"Indian"}'
 CREATE_REST=$(curl -s -X POST http://localhost:8003/api/v1/restaurants \
   -H "Authorization: Bearer $OWNER_TOKEN" \
   -H "Content-Type: application/json" \
@@ -201,6 +216,7 @@ echo -e "${GREEN}✓ Restaurant created: ID=$RESTAURANT_ID${NC}\n"
 
 # Test 12: Approve Restaurant (ADMIN)
 echo -e "${BLUE}[TEST 12] Approve Restaurant (ADMIN)${NC}"
+log_req "PATCH" "http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/approve" "$ADMIN_TOKEN" ""
 APPROVE_RESP=$(curl -s -X PATCH http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/approve \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 echo "$APPROVE_RESP" | jq '.'
@@ -265,6 +281,7 @@ echo
 
 # Test 19: Create Menu Item (owner)
 echo -e "${BLUE}[TEST 19] Create Menu Item${NC}"
+log_req "POST" "http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/menu" "$OWNER_TOKEN" '{"name":"Butter Chicken","price":350}'
 CREATE_MENU=$(curl -s -X POST http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/menu \
   -H "Authorization: Bearer $OWNER_TOKEN" \
   -H "Content-Type: application/json" \
@@ -329,8 +346,221 @@ if [ -n "$MENU_ITEM_ID" ]; then
   echo
 fi
 
-# Test 26: Delete Restaurant (owner)
-echo -e "${BLUE}[TEST 26] Delete Restaurant${NC}"
+# Re-create menu item for order tests
+echo -e "${BLUE}[TEST 25b] Re-create Menu Item for Order Tests${NC}"
+CREATE_MENU=$(curl -s -X POST http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/menu \
+  -H "Authorization: Bearer $OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":"Butter Chicken",
+    "description":"Creamy tomato-based chicken curry",
+    "price":350.00,
+    "category":"Main Course",
+    "is_veg":false,
+    "image_url":"https://example.com/butter-chicken.jpg"
+  }')
+
+echo "$CREATE_MENU" | jq '.'
+MENU_ITEM_ID=$(echo "$CREATE_MENU" | jq -r '.menu_item.id // empty')
+if [ -n "$MENU_ITEM_ID" ]; then
+  echo -e "${GREEN}✓ Menu item recreated: ID=$MENU_ITEM_ID${NC}\n"
+fi
+
+# ── Order Service Tests ────────────────────────────────────────────────────
+
+# Re-open restaurant (test 18 toggled it closed)
+echo -e "${BLUE}[PREP] Re-open restaurant for order tests${NC}"
+curl -s -X PATCH http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/status \
+  -H "Authorization: Bearer $OWNER_TOKEN" | jq '.'
+echo
+
+# Test 26: Place Order (USER)
+echo -e "${BLUE}[TEST 26] Place Order (USER)${NC}"
+IDEMPOTENCY_KEY=$(uuidgen 2>/dev/null || echo "order-$(date +%s%N)")
+log_req "POST" "http://localhost:8004/api/v1/orders" "$ACCESS_TOKEN" '{"restaurant_id":'$RESTAURANT_ID',"menu_item_id":'$MENU_ITEM_ID',"delivery_address":"'$DELIVERY_ADDRESS'","idempotency_key":"'$IDEMPOTENCY_KEY'"}'
+
+# Use a stable address payload for order tests.
+DELIVERY_ADDRESS="123 Main St, New York 10001"
+
+ORDER_RESPONSE=$(curl -s -X POST http://localhost:8004/api/v1/orders \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -d '{
+    "restaurant_id": '$RESTAURANT_ID',
+    "menu_item_id": '$MENU_ITEM_ID',
+    "delivery_address": "'"$DELIVERY_ADDRESS"'",
+    "notes": "Extra spicy please"
+  }')
+
+echo "$ORDER_RESPONSE" | jq '.'
+ORDER_ID=$(echo "$ORDER_RESPONSE" | jq -r '.order.id // .id // empty')
+
+if [ -z "$ORDER_ID" ]; then
+  echo -e "${RED}⚠ Order placement failed${NC}\n"
+else
+  echo -e "${GREEN}✓ Order placed: ID=$ORDER_ID${NC}"
+  echo -e "${YELLOW}── Order after ORDER_PLACED ──${NC}"
+  echo "$ORDER_RESPONSE" | jq '.order'
+  echo
+fi
+
+# Test 27: Idempotency Check (should return 409)
+echo -e "${BLUE}[TEST 27] Idempotency Check (duplicate key)${NC}"
+DUPLICATE_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8004/api/v1/orders \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -d '{
+    "restaurant_id": '$RESTAURANT_ID',
+    "menu_item_id": '$MENU_ITEM_ID',
+    "delivery_address": "'"$DELIVERY_ADDRESS"'"
+  }')
+
+echo "HTTP status: $DUPLICATE_STATUS"
+if [ "$DUPLICATE_STATUS" = "409" ]; then
+  echo -e "${GREEN}✓ Idempotency key correctly rejected (409)${NC}\n"
+else
+  echo -e "${RED}⚠ Expected 409, got $DUPLICATE_STATUS${NC}\n"
+fi
+
+# Test 28: Get Order Details
+if [ -n "$ORDER_ID" ]; then
+  echo -e "${BLUE}[TEST 28] Get Order Details${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.'
+  echo
+fi
+
+# Test 29: Get User Order History
+echo -e "${BLUE}[TEST 29] Get User Order History${NC}"
+if [ -n "$USER_ID" ]; then
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/user/$USER_ID | jq '.'
+  echo
+fi
+
+# Test 30: Get Restaurant Orders (OWNER)
+echo -e "${BLUE}[TEST 30] Get Restaurant Orders (OWNER)${NC}"
+curl -s -H "Authorization: Bearer $OWNER_TOKEN" \
+  http://localhost:8004/api/v1/orders/restaurant/$RESTAURANT_ID | jq '.'
+echo
+
+# Test 31: Restaurant Owner updates status (JWT-protected, owner token)
+if [ -n "$ORDER_ID" ]; then
+  echo -e "${BLUE}[TEST 31] Owner: Confirm Order${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/orders/$ORDER_ID/status" "$OWNER_TOKEN" '{"status":"CONFIRMED"}'
+  curl -s -X PATCH http://localhost:8004/api/v1/orders/$ORDER_ID/status \
+    -H "Authorization: Bearer $OWNER_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"CONFIRMED"}' | jq '.'
+  echo -e "${YELLOW}── Order after CONFIRMED ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.order'
+  echo
+  
+  # Update to PREPARING
+  echo -e "${BLUE}[TEST 31b] Owner: Mark PREPARING${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/orders/$ORDER_ID/status" "$OWNER_TOKEN" '{"status":"PREPARING"}'
+  curl -s -X PATCH http://localhost:8004/api/v1/orders/$ORDER_ID/status \
+    -H "Authorization: Bearer $OWNER_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"PREPARING"}' | jq '.'
+  echo -e "${YELLOW}── Order after PREPARING ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.order'
+  echo
+  
+  # Update to PREPARED
+  echo -e "${BLUE}[TEST 31c] Owner: Mark PREPARED${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/orders/$ORDER_ID/status" "$OWNER_TOKEN" '{"status":"PREPARED"}'
+  curl -s -X PATCH http://localhost:8004/api/v1/orders/$ORDER_ID/status \
+    -H "Authorization: Bearer $OWNER_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"PREPARED"}' | jq '.'
+  echo -e "${YELLOW}── Order after PREPARED ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.order'
+  echo
+
+  # Test 31d: Internal/Delivery system updates (no JWT)
+  echo -e "${BLUE}[TEST 31d] Internal: OUT_FOR_DELIVERY${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/internal/orders/$ORDER_ID/status" "" '{"status":"OUT_FOR_DELIVERY"}'
+  curl -s -X PATCH http://localhost:8004/api/v1/internal/orders/$ORDER_ID/status \
+    -H "Content-Type: application/json" \
+    -d '{"status":"OUT_FOR_DELIVERY"}' | jq '.'
+  echo -e "${YELLOW}── Order after OUT_FOR_DELIVERY ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.order'
+  echo
+
+  echo -e "${BLUE}[TEST 31e] Internal: DELIVERED${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/internal/orders/$ORDER_ID/status" "" '{"status":"DELIVERED"}'
+  curl -s -X PATCH http://localhost:8004/api/v1/internal/orders/$ORDER_ID/status \
+    -H "Content-Type: application/json" \
+    -d '{"status":"DELIVERED"}' | jq '.'
+  echo -e "${YELLOW}── Order after DELIVERED ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$ORDER_ID | jq '.order'
+  echo
+fi
+
+# Test 32: Place Another Order for Cancel Test
+echo -e "${BLUE}[TEST 32] Place Order for Cancel Test${NC}"
+CANCEL_IDEMPOTENCY_KEY=$(uuidgen 2>/dev/null || echo "order-cancel-$(date +%s%N)")
+CANCEL_ORDER=$(curl -s -X POST http://localhost:8004/api/v1/orders \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $CANCEL_IDEMPOTENCY_KEY" \
+  -d '{
+    "restaurant_id": '$RESTAURANT_ID',
+    "menu_item_id": '$MENU_ITEM_ID',
+    "delivery_address": "'"$DELIVERY_ADDRESS"'",
+    "notes": "Order to be cancelled"
+  }')
+
+echo "$CANCEL_ORDER" | jq '.'
+CANCEL_ORDER_ID=$(echo "$CANCEL_ORDER" | jq -r '.order.id // .id // empty')
+
+if [ -n "$CANCEL_ORDER_ID" ]; then
+  echo -e "${GREEN}✓ Order for cancel test placed: ID=$CANCEL_ORDER_ID${NC}\n"
+  
+  # Test 33: Cancel Order
+  echo -e "${BLUE}[TEST 33] Cancel Order${NC}"
+  log_req "PATCH" "http://localhost:8004/api/v1/orders/$CANCEL_ORDER_ID/cancel" "$ACCESS_TOKEN" ""
+  curl -s -X PATCH http://localhost:8004/api/v1/orders/$CANCEL_ORDER_ID/cancel \
+    -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.'
+  echo
+  
+  # Verify cancel worked
+  echo -e "${BLUE}[TEST 33b] Verify Cancel (should be CANCELLED)${NC}"
+  echo -e "${YELLOW}── Order after CANCELLED ──${NC}"
+  curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
+    http://localhost:8004/api/v1/orders/$CANCEL_ORDER_ID | jq '.order'
+  echo
+fi
+
+# Test 34: Try to cancel already confirmed order (should fail)
+if [ -n "$ORDER_ID" ]; then
+  echo -e "${BLUE}[TEST 34] Try Cancel Confirmed Order (should 422)${NC}"
+  CANCEL_CONFIRMED_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH \
+    http://localhost:8004/api/v1/orders/$ORDER_ID/cancel \
+    -H "Authorization: Bearer $ACCESS_TOKEN")
+  
+  echo "HTTP status: $CANCEL_CONFIRMED_STATUS"
+  if [ "$CANCEL_CONFIRMED_STATUS" = "422" ]; then
+    echo -e "${GREEN}✓ Cancel correctly rejected for confirmed order (422)${NC}\n"
+  else
+    echo -e "${RED}⚠ Expected 422, got $CANCEL_CONFIRMED_STATUS${NC}\n"
+  fi
+fi
+
+# Test 35: Delete Menu Item before restaurant (FK constraint)
+echo -e "${BLUE}[TEST 35] Delete Menu Item + Restaurant (owner)${NC}"
+if [ -n "$MENU_ITEM_ID" ]; then
+  curl -s -X DELETE http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID/menu/$MENU_ITEM_ID \
+    -H "Authorization: Bearer $OWNER_TOKEN" | jq '.'
+fi
 curl -s -X DELETE http://localhost:8003/api/v1/restaurants/$RESTAURANT_ID \
   -H "Authorization: Bearer $OWNER_TOKEN" | jq '.'
 echo
@@ -338,7 +568,8 @@ echo
 # ── Auth Cleanup Tests ──────────────────────────────────────────────────────
 
 # Test 27: Delete account (triggers USER_DELETED event)
-echo -e "${BLUE}[TEST 27] Delete Account (triggers event)${NC}"
+echo -e "${BLUE}[TEST 36] Delete Account (triggers event)${NC}"
+log_req "DELETE" "http://localhost:8001/api/v1/auth/account" "$ACCESS_TOKEN" ""
 DELETE_RESPONSE=$(curl -s -X DELETE http://localhost:8001/api/v1/auth/account \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 
@@ -348,8 +579,8 @@ echo
 # Wait for event processing
 sleep 2
 
-# Test 28: Verify profile was deleted and token rejected
-echo -e "${BLUE}[TEST 28] Verify Profile Deleted via Event${NC}"
+# Test 37: Verify profile was deleted and token rejected
+echo -e "${BLUE}[TEST 37] Verify Profile Deleted via Event${NC}"
 GET_DELETED=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $ACCESS_TOKEN" \
   http://localhost:8002/api/v1/users/$USER_ID)
 
@@ -360,8 +591,8 @@ else
   echo -e "${RED}⚠ Unexpected status: $GET_DELETED${NC}\n"
 fi
 
-# Test 29: Privilege escalation regression — ADMIN role must be rejected
-echo -e "${BLUE}[TEST 29] Privilege Escalation Regression (ADMIN role)${NC}"
+# Test 38: Privilege escalation regression — ADMIN role must be rejected
+echo -e "${BLUE}[TEST 38] Privilege Escalation Regression (ADMIN role)${NC}"
 ADMIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8001/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"name":"hacker","email":"hacker@x.com","password":"Pass@12345","phone":"+15559999999","role":"ADMIN"}')
@@ -372,8 +603,8 @@ else
   echo -e "${RED}⚠ Expected 400, got $ADMIN_STATUS${NC}\n"
 fi
 
-# Test 30: Deleted user login regression — must be rejected
-echo -e "${BLUE}[TEST 30] Deleted User Login Regression${NC}"
+# Test 39: Deleted user login regression — must be rejected
+echo -e "${BLUE}[TEST 39] Deleted User Login Regression${NC}"
 DELETED_LOGIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8001/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"'$EMAIL'","password":"'$PASSWORD'"}')

@@ -7,6 +7,7 @@
     { "key": "AUTH_URL", "value": "http://localhost:8001/api/v1/auth" },
     { "key": "USER_URL", "value": "http://localhost:8002/api/v1" },
     { "key": "RESTAURANT_URL", "value": "http://localhost:8003/api/v1" },
+    { "key": "ORDER_URL", "value": "http://localhost:8004/api/v1" },
     { "key": "ACCESS_TOKEN", "value": "" },
     { "key": "REFRESH_TOKEN", "value": "" },
     { "key": "USER_ID", "value": "" },
@@ -16,7 +17,9 @@
     { "key": "ADDRESS_ID", "value": "" },
     { "key": "RESTAURANT_ID", "value": "" },
     { "key": "MENU_ITEM_ID", "value": "" },
-    { "key": "ADMIN_TOKEN", "value": "" }
+    { "key": "ADMIN_TOKEN", "value": "" },
+    { "key": "ORDER_ID", "value": "" },
+    { "key": "IDEMPOTENCY_KEY", "value": "" }
   ],
   "auth": {
     "type": "bearer",
@@ -465,12 +468,13 @@
           "name": "Update Order Status (Owner)",
           "request": {
             "method": "PATCH",
-            "url": "{{RESTAURANT_URL}}/restaurants/{{RESTAURANT_ID}}/order-status",
+            "url": "{{ORDER_URL}}/orders/{{ORDER_ID}}/status",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"order_id\": 1,\n  \"status\": \"PREPARING\"\n}"
-            }
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "description": "Restaurant owner updates order status. Allowed: CONFIRMED, PREPARING, PREPARED. Requires owner JWT token."
           }
         },
         {
@@ -567,6 +571,139 @@
           "request": {
             "method": "DELETE",
             "url": "{{RESTAURANT_URL}}/restaurants/{{RESTAURANT_ID}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{ORDER_URL}}/orders/health",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Place Order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('IDEMPOTENCY_KEY', 'idem-' + Date.now() + '-' + Math.floor(Math.random() * 1000000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('ORDER_ID', body.order.id);",
+                  "  pm.test('Order placed', () => pm.expect(body.order.id).to.be.above(0));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{ORDER_URL}}/orders",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{IDEMPOTENCY_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurant_id\": {{RESTAURANT_ID}},\n  \"menu_item_id\": {{MENU_ITEM_ID}},\n  \"delivery_address\": \"123 Main Street, New York 10001\",\n  \"notes\": \"Extra spicy please\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Place Order (Idempotency Test)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Idempotency key rejected', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{ORDER_URL}}/orders",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{IDEMPOTENCY_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurant_id\": {{RESTAURANT_ID}},\n  \"menu_item_id\": {{MENU_ITEM_ID}},\n  \"delivery_address\": \"123 Main Street, New York 10001\",\n  \"notes\": \"Duplicate order\"\n}"
+            },
+            "description": "Should return 409 if using same idempotency key"
+          }
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "url": "{{ORDER_URL}}/orders/{{ORDER_ID}}"
+          }
+        },
+        {
+          "name": "Get User Order History",
+          "request": {
+            "method": "GET",
+            "url": "{{ORDER_URL}}/orders/user/{{USER_ID}}"
+          }
+        },
+        {
+          "name": "Get Restaurant Orders (Owner)",
+          "request": {
+            "method": "GET",
+            "url": "{{ORDER_URL}}/orders/restaurant/{{RESTAURANT_ID}}",
+            "description": "Restaurant owner can see all orders for their restaurant"
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PATCH",
+            "url": "{{ORDER_URL}}/orders/{{ORDER_ID}}/cancel",
+            "description": "Can only cancel if status is PLACED"
+          }
+        },
+        {
+          "name": "Update Order Status (Owner)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{ORDER_URL}}/orders/{{ORDER_ID}}/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PREPARING\"\n}"
+            },
+            "description": "Restaurant owner updates order status. Allowed: CONFIRMED → PREPARING → PREPARED. Requires owner JWT."
+          }
+        },
+        {
+          "name": "Update Order Status (Internal)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{ORDER_URL}}/internal/orders/{{ORDER_ID}}/status",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OUT_FOR_DELIVERY\"\n}"
+            },
+            "description": "Internal/delivery system endpoint (no JWT). Allowed: OUT_FOR_DELIVERY, DELIVERED, FAILED"
           }
         }
       ]

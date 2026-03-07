@@ -66,6 +66,21 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-order:
+    image: postgres:15-alpine
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB:       order_db
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - order-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ── Auth Service ──────────────────────────────────────────────────────────────
   auth-service:
     build:
@@ -146,6 +161,31 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # ── Order Service ─────────────────────────────────────────────────────────────
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8004:8004"
+    environment:
+      PORT:                     "8004"
+      DATABASE_URL:             postgres://postgres:postgres@postgres-order:5432/order_db?sslmode=disable
+      REDIS_URL:                redis:6379
+      RABBITMQ_URL:             "amqp://guest:guest@rabbitmq:5672/"
+      JWT_SECRET:               "change-me-in-production"
+      RESTAURANT_SERVICE_URL:   "http://restaurant-service:8003"
+      IDEMPOTENCY_EXPIRY:       "24h"
+    depends_on:
+      postgres-order:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── pgAdmin ───────────────────────────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4
@@ -164,11 +204,13 @@ services:
       - postgres-auth
       - postgres-user
       - postgres-restaurant
+      - postgres-order
     restart: unless-stopped
 
 volumes:
   auth-data:
   user-data:
   restaurant-data:
+  order-data:
   redis-data:
   pgadmin-data:   # ✅ persist pgAdmin settings across restarts
