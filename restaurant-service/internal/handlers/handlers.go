@@ -345,6 +345,7 @@ func (h *InternalHandler) GetRestaurant(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":          r.ID,
 		"name":        r.Name,
+		"owner_id":    r.OwnerID,
 		"is_open":     r.IsOpen,
 		"is_approved": r.IsApproved,
 	})
