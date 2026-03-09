@@ -73,41 +73,41 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <Card className="w-full max-w-md shadow-elevated border-border">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl gradient-hero flex items-center justify-center mb-2">
-            <UtensilsCrossed className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-orange-50/30 to-white px-4 py-8">
+      <Card className="w-full max-w-md shadow-elevated border-0 bg-white">
+        <CardHeader className="text-center space-y-3 pb-2">
+          <div className="mx-auto w-16 h-16 rounded-2xl gradient-hero flex items-center justify-center shadow-glow mb-2">
+            <UtensilsCrossed className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-display font-bold">Create account</CardTitle>
-          <CardDescription>Get started with FoodPlatform</CardDescription>
+          <CardTitle className="text-3xl font-display font-bold">Create account</CardTitle>
+          <CardDescription className="text-base">Get started with DesiTadka</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" {...register('name')} />
+              <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+              <Input id="name" placeholder="John Doe" className="h-12 rounded-xl border-2 border-border/50 focus:border-primary bg-gray-50/50" {...register('name')} />
               {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" {...register('email')} />
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Input id="email" type="email" placeholder="you@example.com" className="h-12 rounded-xl border-2 border-border/50 focus:border-primary bg-gray-50/50" {...register('email')} />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <Input id="password" type="password" placeholder="••••••••" className="h-12 rounded-xl border-2 border-border/50 focus:border-primary bg-gray-50/50" {...register('password')} />
               {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" placeholder="+91 9876543210" {...register('phone')} />
+              <Label htmlFor="phone" className="text-sm font-medium">Phone</Label>
+              <Input id="phone" placeholder="+91 9876543210" className="h-12 rounded-xl border-2 border-border/50 focus:border-primary bg-gray-50/50" {...register('phone')} />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>I am a</Label>
+              <Label className="text-sm font-medium">I am a</Label>
               <Select value={watch('role')} onValueChange={(v) => setValue('role', v as RegisterableRole)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl border-2 border-border/50 focus:border-primary bg-gray-50/50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(roleLabels) as RegisterableRole[]).map(role => (
                     <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>
@@ -116,14 +116,14 @@ const RegisterPage = () => {
               </Select>
               {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            <Button type="submit" className="w-full h-12 rounded-xl gradient-hero text-white font-semibold text-base border-0 shadow-elevated hover:shadow-glow btn-shine" disabled={loading}>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
               Create Account
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-8 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="text-primary font-semibold hover:underline">Sign in</Link>
           </div>
         </CardContent>
       </Card>

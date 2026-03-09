@@ -46,24 +46,24 @@ const CustomerLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-white/95 backdrop-blur-lg shadow-sm">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-hero flex items-center justify-center">
-              <UtensilsCrossed className="w-4 h-4 text-primary-foreground" />
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl gradient-hero flex items-center justify-center shadow-sm group-hover:shadow-glow transition-shadow">
+              <UtensilsCrossed className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display font-bold text-lg">FoodPlatform</span>
+            <span className="font-display font-bold text-xl">Desi<span className="text-primary">Tadka</span></span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+          <nav className="hidden md:flex items-center gap-8">
+            <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
               <Home className="w-4 h-4" /> Home
             </Link>
-            <Link to="/restaurants" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+            <Link to="/restaurants" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
               <MapPin className="w-4 h-4" /> Restaurants
             </Link>
-            <Link to="/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+            <Link to="/orders" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
               <ClipboardList className="w-4 h-4" /> Orders
             </Link>
           </nav>

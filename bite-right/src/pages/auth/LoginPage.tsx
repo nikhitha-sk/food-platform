@@ -80,38 +80,38 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md shadow-elevated border-border">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl gradient-hero flex items-center justify-center mb-2">
-            <UtensilsCrossed className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-orange-100/50 to-white px-4">
+      <Card className="w-full max-w-md shadow-elevated border border-orange-200/50 bg-white">
+        <CardHeader className="text-center space-y-3 pb-2">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-400 flex items-center justify-center shadow-lg mb-2">
+            <UtensilsCrossed className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-display font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardTitle className="text-3xl font-display font-bold">Welcome to <span className="text-orange-500">DesiTadka</span></CardTitle>
+          <CardDescription className="text-base">Sign in to order authentic Indian food</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <CardContent className="pt-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" {...register('email')} />
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Input id="email" type="email" placeholder="you@example.com" className="h-12 rounded-xl border-2 border-orange-200 focus:border-orange-500 bg-orange-50/30" {...register('email')} />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <Input id="password" type="password" placeholder="••••••••" className="h-12 rounded-xl border-2 border-orange-200 focus:border-orange-500 bg-orange-50/30" {...register('password')} />
               {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            <Button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white font-semibold text-base border-0 shadow-lg hover:shadow-xl btn-shine" disabled={loading}>
+              {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
               Sign In
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-8 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
-            <Link to="/register" className="text-primary font-medium hover:underline">Sign up</Link>
+            <Link to="/register" className="text-orange-500 font-semibold hover:underline">Sign up</Link>
           </div>
-          <div className="mt-2 text-center text-sm">
-            <Link to="/otp" className="text-muted-foreground hover:text-primary">Sign in with OTP</Link>
+          <div className="mt-3 text-center text-sm">
+            <Link to="/otp" className="text-muted-foreground hover:text-orange-500 transition-colors">Sign in with OTP</Link>
           </div>
         </CardContent>
       </Card>
