@@ -15,6 +15,7 @@ const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   address: z.string().optional(),
   cuisine: z.string().optional(),
+  image_url: z.string().optional(),
   latitude: z.coerce.number().optional(),
   longitude: z.coerce.number().optional(),
 });
@@ -49,6 +50,7 @@ const CreateRestaurantPage = () => {
             <div className="space-y-2"><Label>Restaurant Name *</Label><Input {...register('name')} />{errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}</div>
             <div className="space-y-2"><Label>Address</Label><Input {...register('address')} placeholder="Street, City" /></div>
             <div className="space-y-2"><Label>Cuisine</Label><Input {...register('cuisine')} placeholder="Indian, Chinese..." /></div>
+            <div className="space-y-2"><Label>Image URL</Label><Input {...register('image_url')} placeholder="https://example.com/image.jpg" /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Latitude</Label><Input type="number" step="any" {...register('latitude')} /></div>
               <div className="space-y-2"><Label>Longitude</Label><Input type="number" step="any" {...register('longitude')} /></div>

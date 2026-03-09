@@ -20,6 +20,7 @@ const RestaurantPage = () => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [cuisine, setCuisine] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
 
   useEffect(() => {
     const fetch = async () => {
@@ -31,7 +32,7 @@ const RestaurantPage = () => {
           const full = await restaurantApi.get(`/restaurants/${mine.id}`);
           const r = full.data.restaurant;
           setRestaurant(r);
-          setName(r.name); setAddress(r.address || ''); setCuisine(r.cuisine || '');
+          setName(r.name); setAddress(r.address || ''); setCuisine(r.cuisine || ''); setImageUrl(r.image_url || '');
         }
       } catch { /* no restaurant */ }
       finally { setLoading(false); }
@@ -58,7 +59,7 @@ const RestaurantPage = () => {
   const saveChanges = async () => {
     setSaving(true);
     try {
-      const res = await restaurantApi.put(`/restaurants/${restaurant.id}`, { name, address, cuisine });
+      const res = await restaurantApi.put(`/restaurants/${restaurant.id}`, { name, address, cuisine, image_url: imageUrl });
       setRestaurant(res.data.restaurant);
       toast.success('Updated');
     } catch { toast.error('Failed to update'); }
@@ -87,6 +88,20 @@ const RestaurantPage = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Restaurant image preview */}
+          <div className="flex items-center gap-4">
+            {imageUrl ? (
+              <img src={imageUrl} alt={name} className="w-24 h-24 object-cover rounded-lg" />
+            ) : (
+              <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center">
+                <span className="text-3xl">🍽️</span>
+              </div>
+            )}
+            <div className="flex-1 space-y-2">
+              <Label>Image URL</Label>
+              <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" />
+            </div>
+          </div>
           <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
           <div className="space-y-2"><Label>Address</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
           <div className="space-y-2"><Label>Cuisine</Label><Input value={cuisine} onChange={e => setCuisine(e.target.value)} /></div>

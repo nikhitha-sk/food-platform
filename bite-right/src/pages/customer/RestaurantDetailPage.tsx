@@ -212,21 +212,31 @@ const RestaurantDetailPage = () => {
   return (
     <div className="container py-8">
       {/* Restaurant header */}
-      <div className="mb-8 p-6 rounded-xl bg-card shadow-card border border-border">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-display font-bold mb-2">{restaurant.name}</h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              {restaurant.cuisine && <span>{restaurant.cuisine}</span>}
-              {restaurant.avg_rating > 0 && (
-                <span className="flex items-center gap-1"><Star className="w-4 h-4 text-warning fill-warning" /> {restaurant.avg_rating.toFixed(1)}</span>
-              )}
-              {restaurant.address && <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {restaurant.address}</span>}
+      <div className="mb-8 rounded-xl bg-card shadow-card border border-border overflow-hidden">
+        {/* Restaurant image banner */}
+        <div className="h-48 bg-muted flex items-center justify-center overflow-hidden">
+          {restaurant.image_url ? (
+            <img src={restaurant.image_url} alt={restaurant.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-6xl">🍽️</span>
+          )}
+        </div>
+        <div className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-display font-bold mb-2">{restaurant.name}</h1>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                {restaurant.cuisine && <span>{restaurant.cuisine}</span>}
+                {restaurant.avg_rating > 0 && (
+                  <span className="flex items-center gap-1"><Star className="w-4 h-4 text-warning fill-warning" /> {restaurant.avg_rating.toFixed(1)}</span>
+                )}
+                {restaurant.address && <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {restaurant.address}</span>}
+              </div>
             </div>
+            <Badge variant={restaurant.is_open ? 'default' : 'secondary'} className={restaurant.is_open ? 'bg-success text-success-foreground' : ''}>
+              {restaurant.is_open ? 'Open' : 'Closed'}
+            </Badge>
           </div>
-          <Badge variant={restaurant.is_open ? 'default' : 'secondary'} className={restaurant.is_open ? 'bg-success text-success-foreground' : ''}>
-            {restaurant.is_open ? 'Open' : 'Closed'}
-          </Badge>
         </div>
       </div>
 

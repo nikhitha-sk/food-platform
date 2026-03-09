@@ -77,6 +77,7 @@ export interface Restaurant {
   latitude: number;
   longitude: number;
   cuisine: string;
+  image_url?: string;
   avg_rating: number;
   is_open: boolean;
   is_approved: boolean;
@@ -105,6 +106,7 @@ export interface CreateRestaurantRequest {
   latitude?: number;
   longitude?: number;
   cuisine?: string;
+  image_url?: string;
 }
 
 export interface CreateMenuItemRequest {

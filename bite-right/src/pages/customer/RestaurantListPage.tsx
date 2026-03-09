@@ -9,8 +9,12 @@ import { Search, Star, MapPin } from 'lucide-react';
 
 const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => (
   <Link to={`/restaurants/${restaurant.id}`} className="group block rounded-xl bg-card shadow-card border border-border overflow-hidden hover:shadow-elevated transition-all">
-    <div className="h-40 bg-muted flex items-center justify-center">
-      <span className="text-4xl">🍽️</span>
+    <div className="h-40 bg-muted flex items-center justify-center overflow-hidden">
+      {restaurant.image_url ? (
+        <img src={restaurant.image_url} alt={restaurant.name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-4xl">🍽️</span>
+      )}
     </div>
     <div className="p-4 space-y-2">
       <div className="flex items-center justify-between">

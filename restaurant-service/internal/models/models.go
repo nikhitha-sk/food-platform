@@ -14,6 +14,7 @@ type Restaurant struct {
 	Latitude   float64    `gorm:"type:decimal(10,8)" json:"latitude"`
 	Longitude  float64    `gorm:"type:decimal(11,8)" json:"longitude"`
 	Cuisine    string     `gorm:"size:100" json:"cuisine"`
+	ImageURL   string     `gorm:"size:500" json:"image_url"`
 	AvgRating  float64    `gorm:"type:decimal(3,2);default:0.0" json:"avg_rating"`
 	IsOpen     bool       `gorm:"default:true" json:"is_open"`
 	IsApproved bool       `gorm:"default:false" json:"is_approved"`
@@ -56,6 +57,7 @@ type CreateRestaurantRequest struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Cuisine   string  `json:"cuisine"`
+	ImageURL  string  `json:"image_url"`
 }
 
 type UpdateRestaurantRequest struct {
@@ -64,6 +66,7 @@ type UpdateRestaurantRequest struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Cuisine   string  `json:"cuisine"`
+	ImageURL  string  `json:"image_url"`
 }
 
 type CreateMenuItemRequest struct {

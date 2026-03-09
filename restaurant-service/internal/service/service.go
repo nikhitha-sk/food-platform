@@ -55,6 +55,7 @@ func (s *restaurantService) Create(ownerID uint, req *models.CreateRestaurantReq
 		Latitude:   req.Latitude,
 		Longitude:  req.Longitude,
 		Cuisine:    req.Cuisine,
+		ImageURL:   req.ImageURL,
 		IsApproved: false,
 		IsOpen:     true,
 	}
@@ -127,6 +128,9 @@ func (s *restaurantService) Update(id uint, callerID uint, callerRole string, re
 	}
 	if req.Cuisine != "" {
 		r.Cuisine = req.Cuisine
+	}
+	if req.ImageURL != "" {
+		r.ImageURL = req.ImageURL
 	}
 	if err := s.repo.Update(r); err != nil {
 		return nil, err
