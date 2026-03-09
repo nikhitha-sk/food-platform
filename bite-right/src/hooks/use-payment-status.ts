@@ -7,7 +7,7 @@ export function usePaymentStatus(orderId: number | undefined, poll: boolean = tr
   const [loading, setLoading] = useState(!!orderId);
   useEffect(() => {
     if (!orderId) return;
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     let attempts = 0;
     const fetchStatus = async () => {
       try {

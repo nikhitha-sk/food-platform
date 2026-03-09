@@ -20,7 +20,31 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
+
+func prepareLegacyPaymentSchema(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&models.Payment{}) {
+		return nil
+	}
+
+	stmts := []string{
+		`ALTER TABLE payments ADD COLUMN IF NOT EXISTS amount_paise bigint`,
+		`UPDATE payments SET amount_paise = ROUND(amount * 100) WHERE amount_paise IS NULL`,
+		`ALTER TABLE payments ALTER COLUMN amount_paise SET NOT NULL`,
+		`ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency text DEFAULT 'INR'`,
+		`UPDATE payments SET currency = 'INR' WHERE currency IS NULL OR currency = ''`,
+		`ALTER TABLE payments ALTER COLUMN currency SET DEFAULT 'INR'`,
+	}
+
+	for _, stmt := range stmts {
+		if err := db.Exec(stmt).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func main() {
 	cfg := config.Load()
@@ -53,6 +77,10 @@ func main() {
 	publisher, err := events.NewPublisher(rbCh)
 	if err != nil {
 		logger.Fatal("failed to create publisher", zap.Error(err))
+	}
+
+	if err := prepareLegacyPaymentSchema(db); err != nil {
+		logger.Fatal("legacy schema prep failed", zap.Error(err))
 	}
 
 	// auto-migrate for now

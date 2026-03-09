@@ -32,9 +32,9 @@ const formatAddress = (addr: Address): string =>
   `${addr.line1}, ${addr.city} ${addr.pincode}`.trim();
 
 const RestaurantDetailPage = () => {
-    const [payment, setPayment] = useState<Payment | null>(null);
-    const [showPayment, setShowPayment] = useState(false);
-    const paymentPollRef = useRef<NodeJS.Timeout | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const paymentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -66,6 +66,14 @@ const RestaurantDetailPage = () => {
       if (def) setSelectedAddress(String(def.id));
     }).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (paymentPollRef.current) {
+        clearInterval(paymentPollRef.current);
+      }
+    };
+  }, []);
 
   const placeOrder = async () => {
     if (!orderModal || !user || !restaurant) return;
@@ -133,8 +141,8 @@ const RestaurantDetailPage = () => {
             setOrderModal(null);
             setNotes('');
             // Optionally redirect to tracking page
-          } catch (err) {
-            toast.error('Payment verification failed.');
+          } catch (err: any) {
+            toast.error(err?.message || 'Payment verification failed.');
             pollPaymentStatus(orderId);
           }
         },
@@ -151,12 +159,14 @@ const RestaurantDetailPage = () => {
       });
       rzp.open();
     } catch (err: any) {
+      console.error('placeOrder error:', err, 'response:', err.response?.data);
       if (err.response?.status === 409 && err.response?.data?.error === 'duplicate_request') {
         // silently ignore
       } else if (err.response?.status === 422) {
         toast.error(err.response.data?.message || 'Unable to place order');
       } else {
-        toast.error('Failed to place order');
+        const errorMsg = err.response?.data?.message || err.message || 'Failed to place order';
+        toast.error(errorMsg);
       }
     } finally {
       setOrdering(false);

@@ -39,10 +39,33 @@ func JWTAuth(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 		if v, exists := (*claims)["user_id"]; exists {
-			c.Set("user_id", uint(v.(float64)))
+			switch typed := v.(type) {
+			case float64:
+				c.Set("user_id", uint(typed))
+			case int:
+				c.Set("user_id", uint(typed))
+			case uint:
+				c.Set("user_id", typed)
+			default:
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_token_claims"})
+				return
+			}
 		}
 		if v, exists := (*claims)["role"]; exists {
-			c.Set("role", v.(string))
+			role, ok := v.(string)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_token_claims"})
+				return
+			}
+			c.Set("role", role)
+		}
+		if _, exists := c.Get("user_id"); !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_token_claims"})
+			return
+		}
+		if _, exists := c.Get("role"); !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_token_claims"})
+			return
 		}
 		c.Next()
 	}

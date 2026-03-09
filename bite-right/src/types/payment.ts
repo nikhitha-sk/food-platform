@@ -8,6 +8,9 @@ export type PaymentStatus =
 export interface Payment {
   id: number;
   order_id: number;
+  amount: number;
+  amount_paise: number;
+  currency: string;
   status: PaymentStatus;
   provider_order_id: string;
   gateway_txn_id: string;

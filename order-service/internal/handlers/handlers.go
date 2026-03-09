@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -14,6 +15,18 @@ import (
 
 type OrderHandler struct {
 	svc service.OrderService
+}
+
+func userIDFromContext(c *gin.Context) (uint, bool) {
+	v, exists := c.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+	userID, ok := v.(uint)
+	if !ok {
+		return 0, false
+	}
+	return userID, true
 }
 
 func NewOrderHandler(svc service.OrderService) *OrderHandler {
@@ -40,12 +53,11 @@ func (h *OrderHandler) RegisterInternalRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *OrderHandler) PlaceOrder(c *gin.Context) {
-	userIDIfc, exists := c.Get("user_id")
-	if !exists {
+	userID, ok := userIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
 		return
 	}
-	userID := userIDIfc.(uint)
 
 	key := c.GetHeader("Idempotency-Key")
 	if key == "" {
@@ -69,6 +81,7 @@ func (h *OrderHandler) PlaceOrder(c *gin.Context) {
 		case service.ErrCircuitOpen:
 			c.JSON(http.StatusServiceUnavailable, models.ErrorResponse{Error: "service_unavailable"})
 		default:
+			log.Printf("[PlaceOrder] internal error for user=%d, key=%s: %v", userID, key, err)
 			c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error", Message: err.Error()})
 		}
 		return
@@ -94,7 +107,11 @@ func (h *OrderHandler) VerifyPayment(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetPaymentByOrder(c *gin.Context) {
-	orderID, _ := strconv.Atoi(c.Param("orderId"))
+	orderID, err := strconv.Atoi(c.Param("orderId"))
+	if err != nil || orderID <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_order_id"})
+		return
+	}
 	payment, err := h.svc.GetPaymentByOrder(uint(orderID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error"})
@@ -126,7 +143,11 @@ func (h *OrderHandler) RazorpayWebhook(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetOrder(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_order_id"})
+		return
+	}
 	order, err := h.svc.GetOrder(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error"})
@@ -140,7 +161,11 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) ListByUser(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("userId"))
+	id, err := strconv.Atoi(c.Param("userId"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_user_id"})
+		return
+	}
 	orders, err := h.svc.ListByUser(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error"})
@@ -150,7 +175,11 @@ func (h *OrderHandler) ListByUser(c *gin.Context) {
 }
 
 func (h *OrderHandler) ListByRestaurant(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("restaurantId"))
+	id, err := strconv.Atoi(c.Param("restaurantId"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_restaurant_id"})
+		return
+	}
 	orders, err := h.svc.ListByRestaurant(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal_server_error"})
@@ -160,9 +189,16 @@ func (h *OrderHandler) ListByRestaurant(c *gin.Context) {
 }
 
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
-	userIDIfc, _ := c.Get("user_id")
-	userID := userIDIfc.(uint)
-	id, _ := strconv.Atoi(c.Param("id"))
+	userID, ok := userIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_order_id"})
+		return
+	}
 	if err := h.svc.CancelOrder(userID, uint(id)); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, models.ErrorResponse{Error: err.Error()})
 		return
@@ -172,18 +208,22 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 
 // UpdateStatusByOwner handles PATCH /orders/:id/status (JWT-protected, restaurant owner only)
 func (h *OrderHandler) UpdateStatusByOwner(c *gin.Context) {
-	ownerID, exists := c.Get("user_id")
-	if !exists {
+	ownerID, ok := userIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
 		return
 	}
-	id, _ := strconv.Atoi(c.Param("id"))
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_order_id"})
+		return
+	}
 	var req models.OwnerUpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "validation_failed", Message: err.Error()})
 		return
 	}
-	err := h.svc.UpdateStatusByOwner(ownerID.(uint), uint(id), req.Status)
+	err = h.svc.UpdateStatusByOwner(ownerID, uint(id), req.Status)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
@@ -202,13 +242,17 @@ func (h *OrderHandler) UpdateStatusByOwner(c *gin.Context) {
 
 // UpdateStatus handles PATCH /internal/orders/:id/status (no JWT, internal/delivery system)
 func (h *OrderHandler) UpdateStatus(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_order_id"})
+		return
+	}
 	var req models.InternalUpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "validation_failed", Message: err.Error()})
 		return
 	}
-	err := h.svc.UpdateStatus(uint(id), req.Status)
+	err = h.svc.UpdateStatus(uint(id), req.Status)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrNotFound):
