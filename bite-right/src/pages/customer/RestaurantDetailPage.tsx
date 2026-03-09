@@ -238,6 +238,18 @@ const RestaurantDetailPage = () => {
         <div className="grid md:grid-cols-2 gap-4">
           {menu.map(item => (
             <div key={item.id} className="p-4 rounded-xl bg-card shadow-card border border-border flex justify-between items-start gap-4">
+              {/* Menu item image */}
+              {item.image_url ? (
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-muted rounded-lg flex-shrink-0 flex items-center justify-center">
+                  <span className="text-3xl">🍽️</span>
+                </div>
+              )}
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   {item.is_veg ? (

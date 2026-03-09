@@ -97,6 +97,18 @@ const MenuPage = () => {
           {items.map(item => (
             <div key={item.id} className="p-4 rounded-xl bg-card shadow-card border border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* Menu item image */}
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0 flex items-center justify-center">
+                    <span className="text-2xl">🍽️</span>
+                  </div>
+                )}
                 {item.is_veg ? <Leaf className="w-4 h-4 text-success" /> : <Drumstick className="w-4 h-4 text-destructive" />}
                 <div>
                   <div className="flex items-center gap-2">

@@ -125,6 +125,7 @@ export interface Order {
   menu_item_id: number;
   item_name: string;
   item_price: number;
+  item_image_url?: string;
   status: OrderStatus;
   delivery_address: string;
   notes: string;

@@ -368,6 +368,7 @@ func (h *InternalHandler) GetMenuItem(c *gin.Context) {
 		"name":         item.Name,
 		"price":        item.Price,
 		"is_available": item.IsAvailable,
+		"image_url":    item.ImageURL,
 	})
 }
 

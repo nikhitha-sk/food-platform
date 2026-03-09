@@ -45,6 +45,7 @@ type Order struct {
 	MenuItemID      uint      `gorm:"not null" json:"menu_item_id"`
 	ItemName        string    `gorm:"not null" json:"item_name"`
 	ItemPrice       float64   `gorm:"not null" json:"item_price"`
+	ItemImageURL    string    `json:"item_image_url"`
 	Status          string    `gorm:"not null;default:PLACED" json:"status"`
 	DeliveryAddress string    `gorm:"not null" json:"delivery_address"`
 	Notes           string    `json:"notes,omitempty"`

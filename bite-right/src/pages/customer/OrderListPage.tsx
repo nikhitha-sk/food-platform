@@ -3,11 +3,8 @@ import { Link } from 'react-router-dom';
 import { orderApi } from '@/lib/api/clients';
 import { useAuthStore } from '@/store/auth';
 import { Order } from '@/types/api';
-import { usePaymentStatus } from '@/hooks/use-payment-status';
 import { PaymentStatus } from '@/types/payment';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { ClipboardList } from 'lucide-react';
 

@@ -121,6 +121,7 @@ func (s *orderService) PlaceOrder(userID uint, key string, req *models.PlaceOrde
 		Notes:           req.Notes,
 		ItemName:        menuInfo.Name,
 		ItemPrice:       menuInfo.Price,
+		ItemImageURL:    menuInfo.ImageURL,
 		Status:          "PENDING_PAYMENT",
 		IdempotencyKey:  key,
 	}
@@ -284,6 +285,7 @@ type internalMenuItem struct {
 	Name        string  `json:"name"`
 	Price       float64 `json:"price"`
 	IsAvailable bool    `json:"is_available"`
+	ImageURL    string  `json:"image_url"`
 }
 
 func (s *orderService) fetchRestaurant(id uint) (*internalRestaurant, error) {

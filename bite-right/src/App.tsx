@@ -20,7 +20,6 @@ import RestaurantListPage from "@/pages/customer/RestaurantListPage";
 import RestaurantDetailPage from "@/pages/customer/RestaurantDetailPage";
 import OrderListPage from "@/pages/customer/OrderListPage";
 import OrderDetailPage from "@/pages/customer/OrderDetailPage";
-import TrackingPage from "@/pages/customer/TrackingPage";
 import ProfilePage from "@/pages/customer/ProfilePage";
 import AddressesPage from "@/pages/customer/AddressesPage";
 import NotificationsPage from "@/pages/customer/NotificationsPage";
@@ -65,7 +64,6 @@ const App = () => (
               <Route path="/restaurants/:id" element={<RestaurantDetailPage />} />
               <Route path="/orders" element={<OrderListPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
-              <Route path="/orders/:id/track" element={<TrackingPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/addresses" element={<AddressesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
